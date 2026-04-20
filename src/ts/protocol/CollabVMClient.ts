@@ -10,9 +10,15 @@ import VoteStatus from './VoteStatus.js';
 import MuteState from './MuteState.js';
 import { StringLike } from '../StringLike.js';
 import * as msgpack from 'msgpackr';
-// TODO: Properly workspaceify this
-import { CollabVMProtocolMessage, CollabVMProtocolMessageType } from '../../../collab-vm-1.2-binary-protocol/src/index.js';
 const w = window as any;
+
+interface CollabVMProtocolMessage {
+	rect?: {
+		x?: number;
+		y?: number;
+		data?: Uint8Array | ArrayBuffer;
+	};
+}
 
 export interface CollabVMClientEvents {
 	//open: () => void;
@@ -54,7 +60,7 @@ interface CollabVMClientPrivateEvents {
 	qemu: (qemuResponse: string) => void;
 }
 
-const DefaultCapabilities = [ "bin" ];
+const DefaultCapabilities = ['bin'];
 
 export default class CollabVMClient {
 	// Fields
@@ -62,8 +68,8 @@ export default class CollabVMClient {
 	canvas: HTMLCanvasElement;
 	// A secondary canvas that is not scaled
 	unscaledCanvas: HTMLCanvasElement;
-	canvasScale : { width : number, height : number } = { width: 0, height: 0 };
-	actualScreenSize : { width : number, height : number } = { width: 0, height: 0 };
+	canvasScale: { width: number; height: number } = { width: 0, height: 0 };
+	actualScreenSize: { width: number; height: number } = { width: 0, height: 0 };
 	private unscaledCtx: CanvasRenderingContext2D;
 	private ctx: CanvasRenderingContext2D;
 	private url: string;
@@ -205,26 +211,22 @@ export default class CollabVMClient {
 	private onBinaryMessage(data: ArrayBuffer) {
 		let msg: CollabVMProtocolMessage;
 		try {
-			msg = msgpack.decode(data);
+			msg = msgpack.decode(new Uint8Array(data));
 		} catch {
-			console.error("Server sent invalid binary message");
+			console.error('Server sent invalid binary message');
 			return;
 		}
-		if (msg.type === undefined) return;
-		switch (msg.type) {
-			case CollabVMProtocolMessageType.rect: {
-				if (!msg.rect || msg.rect.x === undefined || msg.rect.y === undefined || msg.rect.data === undefined) return;
-				let blob = new Blob( [ new Uint8Array(msg.rect.data) ], {type: "image/jpeg"});
-				let url = URL.createObjectURL(blob);
-				let img = new Image();
-				img.addEventListener('load', () => {
-					this.loadRectangle(img, msg.rect!.x, msg.rect!.y);
-					URL.revokeObjectURL(url);
-				});
-				img.src = url;
-				break;
-			}
-		}
+		if (!msg.rect || msg.rect.x === undefined || msg.rect.y === undefined || msg.rect.data === undefined) return;
+		const rectX = msg.rect.x;
+		const rectY = msg.rect.y;
+		let blob = new Blob([new Uint8Array(msg.rect.data)], { type: 'image/jpeg' });
+		let url = URL.createObjectURL(blob);
+		let img = new Image();
+		img.addEventListener('load', () => {
+			this.loadRectangle(img, rectX, rectY);
+			URL.revokeObjectURL(url);
+		});
+		img.src = url;
 	}
 
 	// Fires on WebSocket message
@@ -405,11 +407,11 @@ export default class CollabVMClient {
 				break;
 			}
 			case 'login': {
-				if (msgArr[1] === "1") {
+				if (msgArr[1] === '1') {
 					this.rank = Rank.Registered;
 					this.publicEmitter.emit('login', Rank.Registered, new Permissions(0));
 				}
-				this.publicEmitter.emit('accountlogin', msgArr[1] === "1");
+				this.publicEmitter.emit('accountlogin', msgArr[1] === '1');
 				break;
 			}
 			case 'admin': {
@@ -457,10 +459,14 @@ export default class CollabVMClient {
 	}
 
 	private loadRectangle(img: HTMLImageElement, x: number, y: number) {
-		if (this.actualScreenSize.width !== this.canvasScale.width || this.actualScreenSize.height !== this.canvasScale.height)
-			this.unscaledCtx.drawImage(img, x, y);
+		if (this.actualScreenSize.width !== this.canvasScale.width || this.actualScreenSize.height !== this.canvasScale.height) this.unscaledCtx.drawImage(img, x, y);
 		// Scale the image to the canvas
-		this.ctx.drawImage(img, 0, 0, img.width, img.height,
+		this.ctx.drawImage(
+			img,
+			0,
+			0,
+			img.width,
+			img.height,
 			(x / this.actualScreenSize.width) * this.canvas.width,
 			(y / this.actualScreenSize.height) * this.canvas.height,
 			(img.width / this.actualScreenSize.width) * this.canvas.width,
@@ -733,7 +739,7 @@ export default class CollabVMClient {
 	}
 
 	private shouldSendInput() {
-		return this.users.find(u => u.username === this.username)?.turn === 0 || (w.collabvm.ghostTurn && this.rank === Rank.Admin);
+		return this.users.find((u) => u.username === this.username)?.turn === 0 || (w.collabvm.ghostTurn && this.rank === Rank.Admin);
 	}
 
 	on<E extends keyof CollabVMClientEvents>(event: E, callback: CollabVMClientEvents[E]): Unsubscribe {
