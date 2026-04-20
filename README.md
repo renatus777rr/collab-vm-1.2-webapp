@@ -1,17 +1,12 @@
-# CollabVM 1.2 Webapp 2.0
+# CollabVM 1.2 Webapp 2.0 Improved
 The CollabVM Web App is the viewer for the CollabVM Server.
-
+Please use the improved server by renatus777rr.
 ## Building
 Copy config.example.json to config.json and edit to your needs, then:
 
 ## yarn
 - `yarn`
 - `yarn build`
-
-## npm
-- `npm i`
-- `npm run build`
-
 The build output directory is `dist/`.
 
 ## Unit testing
